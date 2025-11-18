@@ -509,10 +509,11 @@ def main():
 if __name__ == "__main__":
     main()
 
-```python
 
-JPEG
-```python
+
+
+# JPEG
+
 import numpy as np
 from PIL import Image
 from scipy.fftpack import dct, idct
@@ -724,6 +725,6 @@ if __name__ == "__main__":
         print(f"Compressed JPEG image saved to {compressed_jpg_output_path}")
     except Exception as e:
         print(f"Error: {str(e)}")
-```python
+
 
 
