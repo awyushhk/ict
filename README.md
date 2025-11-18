@@ -1,4 +1,6 @@
 MPEG
+
+```python
 import cv2
 import numpy as np
 import os
@@ -507,8 +509,10 @@ def main():
 if __name__ == "__main__":
     main()
 
+```python
 
 JPEG
+```python
 import numpy as np
 from PIL import Image
 from scipy.fftpack import dct, idct
@@ -719,6 +723,7 @@ if __name__ == "__main__":
         compressed_jpg.save(compressed_jpg_output_path, format="JPEG", quality=quality)
         print(f"Compressed JPEG image saved to {compressed_jpg_output_path}")
     except Exception as e:
-        print(f"Error: {str(e)}")   
+        print(f"Error: {str(e)}")
+```python
 
 
