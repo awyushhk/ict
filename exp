@@ -1,0 +1,417 @@
+```python
+
+# ARITHMETIC
+from collections import defaultdict
+from decimal import Decimal, getcontext
+
+getcontext().prec = 500
+
+def calculate_ranges(message):
+    frequency = defaultdict(int)
+    for char in message:
+        frequency[char] += 1
+    total_chars = len(message)
+    ranges = {}
+    lower_bound = Decimal(0)
+    for char, count in frequency.items():
+        ranges[char] = (lower_bound / total_chars, (lower_bound + count) / total_chars)
+        lower_bound += count
+    return ranges
+
+# Function to perform Arithmetic Encoding
+def arithmetic_encode(message):
+    ranges = calculate_ranges(message)
+    low = Decimal(0.0)
+    high = Decimal(1.0)
+    for char in message:
+        range_width = high - low
+        high = low + range_width * Decimal(ranges[char][1])
+        low = low + range_width * Decimal(ranges[char][0])
+    return (low + high) / 2  
+
+def arithmetic_decode(encoded_value, message, ranges):
+    low = Decimal(0.0)
+    high = Decimal(1.0)
+    decoded_message = ""
+
+    for _ in range(len(message)):
+        range_width = high - low
+        value = (encoded_value - low) / range_width
+
+        for char, (low_range, high_range) in ranges.items():
+            if Decimal(low_range) <= value < Decimal(high_range):
+                decoded_message += char
+                high = low + range_width * Decimal(high_range)
+                low = low + range_width * Decimal(low_range)
+                break
+
+    return decoded_message
+
+def main():
+    input_file = input("Enter the text file name: ")
+    with open(input_file, 'r') as file:
+        message = file.read().strip()
+    
+    print("Original message: ", message)
+    encoded_value = arithmetic_encode(message)
+    print(f"Encoded value: {encoded_value}")
+
+    encoded_file = 'encoded_value.arith'
+    with open(encoded_file, 'w') as file:
+        file.write(str(encoded_value))
+
+    print(f"Encoded value saved to {encoded_file}")
+
+    ranges = calculate_ranges(message)
+
+    decoded_message = arithmetic_decode(Decimal(encoded_value), message, ranges)
+    print(f"Decoded Message: {decoded_message}")
+
+    decoded_file = 'decoded_message.txt'
+    with open(decoded_file, 'w') as file:
+        file.write(decoded_message)
+
+    print(f"Decoded message saved to {decoded_file}")
+
+    if message == decoded_message:
+        print("Success! The decoded message matches the original.")
+    else:
+        print("Error! The decoded message does not match the original.")
+
+if __name__ == "__main__":
+    main()
+ 
+# HUFFMAN
+import heapq
+
+class Node:
+    def __init__(self, char, freq):
+        self.char = char
+        self.freq = freq
+        self.left = None
+        self.right = None
+
+    def __lt__(self, other):
+        return self.freq < other.freq
+
+def build_huffman_tree(symbols_freq):
+    heap = [Node(char, freq) for char, freq in symbols_freq]
+    heapq.heapify(heap)
+    while len(heap) > 1:
+        left = heapq.heappop(heap)
+        right = heapq.heappop(heap)
+        merged = Node(None, left.freq + right.freq)
+        merged.left = left
+        merged.right = right
+        heapq.heappush(heap, merged)
+
+    return heap[0]
+
+def generate_huffman_codes(node, code='', codes={}):
+    if node is not None:
+        if node.char is not None:
+            codes[node.char] = code
+        generate_huffman_codes(node.left, code + '0', codes)
+        generate_huffman_codes(node.right, code + '1', codes)
+    return codes
+
+def encode_message(message, codes):
+    return ''.join(codes[char] for char in message)
+
+def decode_message(encoded_message, root):
+    decoded_message = ''
+    current_node = root
+    for bit in encoded_message:
+        current_node = current_node.left if bit == '0' else current_node.right
+        if current_node.char is not None:
+            decoded_message += current_node.char
+            current_node = root
+    return decoded_message
+
+def main():
+    input_file = input("Enter the text file name: ")
+    with open(input_file, 'r') as file:
+        message = file.read().strip()
+    print("Original message:", message)
+
+    symbols_freq = {char: message.count(char) for char in set(message)}
+    symbols_freq = sorted(symbols_freq.items(), key=lambda x: x[1])
+
+    huffman_tree_root = build_huffman_tree(symbols_freq)
+    codes = generate_huffman_codes(huffman_tree_root)
+
+    encoded_message = encode_message(message, codes)
+    print("Encoded Message:", encoded_message)
+
+    encoded_file = 'encoded_message.huff'
+    with open(encoded_file, 'w') as file:
+        file.write(encoded_message)
+
+    print(f"Encoded message saved to {encoded_file}")
+
+    decoded_message = decode_message(encoded_message, huffman_tree_root)
+    print("Decoded Message:", decoded_message)
+
+    decoded_file = 'decoded_message.txt'
+    with open(decoded_file, 'w') as file:
+        file.write(decoded_message)
+
+    print(f"Decoded message saved to {decoded_file}")
+
+    if message == decoded_message:
+        print("Success! The decoded message matches the original.")
+    else:
+        print("Error! The decoded message does not match the original.")
+
+if __name__ == "__main__":
+    main()
+ 
+# SHANON
+def shannon_fano_recursive(symbols_freq, code=''):
+    if len(symbols_freq) == 1:
+        return {symbols_freq[0][0]: code}
+
+    total_freq = sum([freq for symbol, freq in symbols_freq])
+    cumulative_freq = 0
+    split_point = 0
+
+    for i in range(len(symbols_freq)):
+        cumulative_freq += symbols_freq[i][1]
+        if cumulative_freq >= total_freq / 2:
+            split_point = i + 1
+            break
+
+    left_part = shannon_fano_recursive(symbols_freq[:split_point], code + '0')
+    right_part = shannon_fano_recursive(symbols_freq[split_point:], code + '1')
+
+    left_part.update(right_part)
+    return left_part
+
+def encode_message(message, codes):
+    return ''.join(codes[char] for char in message)
+
+def decode_message(encoded_message, codes):
+    reverse_codes = {v: k for k, v in codes.items()}
+    current_code = ''
+    decoded_message = ''
+
+    for bit in encoded_message:
+        current_code += bit
+        if current_code in reverse_codes:
+            decoded_message += reverse_codes[current_code]
+            current_code = ''
+
+    return decoded_message
+
+def main():
+   
+    input_file = input("Enter the text file name: ")
+    with open(input_file, 'r') as file:
+        message = file.read().strip() 
+    print("Original message: ", message)
+    # Calculate frequency of each symbol
+    symbols_freq = {char: message.count(char) for char in set(message)}
+    symbols_freq = sorted(symbols_freq.items(), key=lambda x: x[1], reverse=True)
+
+    codes = shannon_fano_recursive(symbols_freq)
+
+    encoded_message = encode_message(message, codes)
+    print("Encoded Message: ", encoded_message)
+    encoded_file = 'encoded_message.fano'
+    with open(encoded_file, 'w') as file:
+        file.write(encoded_message)
+
+    print(f"Encoded message saved to {encoded_file}")
+
+    decoded_message = decode_message(encoded_message, codes)
+    print("Decoded Message: ", decoded_message)
+    decoded_file = 'decoded_message.txt'
+    with open(decoded_file, 'w') as file:
+        file.write(decoded_message)
+
+    print(f"Decoded message saved to {decoded_file}")
+
+    if message == decoded_message:
+        print("Success! The decoded message matches the original.")
+    else:
+        print("Error! The decoded message does not match the original.")
+
+# Run the main function
+if __name__ == "__main__":
+    main()
+ 
+# RUN LENGTH
+def run_length_encode(message):
+    encoded = []
+    count = 1
+    for i in range(1, len(message)):
+        if message[i] == message[i - 1]:
+            count += 1
+        else:
+            encoded.append(f"{count}{message[i - 1]}")
+            count = 1
+    encoded.append(f"{count}{message[-1]}")
+    return ''.join(encoded)
+
+def run_length_decode(encoded_message):
+    decoded = []
+    count = ''
+    for char in encoded_message:
+        if char.isdigit():
+            count += char
+        else:
+            decoded.append(char * int(count))
+            count = ''
+    return ''.join(decoded)
+
+def main():
+    input_file = input("Enter the text file name: ")
+    with open(input_file, 'r') as file:
+        message = file.read().strip()
+    print("Original message :", message)
+    encoded_message = run_length_encode(message)
+    print(f"Encoded: {encoded_message}")
+    encoded_file = 'encoded_message.rle'
+    with open(encoded_file, 'w') as file:
+        file.write(encoded_message)
+    print(f"Encoded message saved to {encoded_file}")
+    with open(encoded_file, 'r') as file:
+        encoded_message = file.read().strip()
+    decoded_message = run_length_decode(encoded_message)
+    print(f"Decoded: {decoded_message}")
+    decoded_file = 'decoded_message.txt'
+    with open(decoded_file, 'w') as file:
+        file.write(decoded_message)
+    print(f"Decoded message saved to {decoded_file}")
+    if message == decoded_message:
+        print("Success! The decoded message matches the original.")
+    else:
+        print("Error! The decoded message does not match the original.")
+
+if __name__ == "__main__":
+    main()
+ 
+# LPC (Text)
+
+def text_to_ascii(text):
+    return [ord(char) for char in text]
+
+def ascii_to_text(ascii_list):
+    return ''.join(chr(value) for value in ascii_list)
+
+def lpc_encode(ascii_values):
+    prediction = 0
+    encoded_list = []
+    for value in ascii_values:
+        encoded_value = value - prediction
+        encoded_list.append(encoded_value)
+        prediction = value
+    return encoded_list
+
+def lpc_decode(encoded_values):
+    prediction = 0
+    decoded_list = []
+    for value in encoded_values:
+        decoded_value = value + prediction
+        decoded_list.append(decoded_value)
+        prediction = decoded_value
+    return decoded_list
+
+def text_lpc_pipeline(input_text_file, encoded_text_file, decoded_text_file):
+    # Step 1: Read input text from file
+    with open(input_text_file, 'r') as file:
+        text = file.read().strip()
+
+    print(f"Input Text: {text}")
+
+    # Step 2: Convert text to ASCII values
+    ascii_values = text_to_ascii(text)
+
+    # Step 3: Encode using LPC
+    encoded_values = lpc_encode(ascii_values)
+
+    # Save encoded values to a text file
+    with open(encoded_text_file, 'w') as file:
+        file.write(' '.join(map(str, encoded_values)))
+
+    print(f"Encoded Values: {encoded_values}")
+
+    # Step 4: Decode back to ASCII values
+    decoded_ascii = lpc_decode(encoded_values)
+
+    # Convert decoded ASCII values back to text
+    decoded_text = ascii_to_text(decoded_ascii)
+
+    # Save decoded text to a text file
+    with open(decoded_text_file, 'w') as file:
+        file.write(decoded_text)
+
+    print(f"Decoded Text: {decoded_text}")
+
+# Example usage:
+input_text = r"in.txt"  # Replace with your input text file path
+encoded_text = "encoded.txt"
+decoded_text = "decoded.txt"
+
+text_lpc_pipeline(input_text, encoded_text, decoded_text)
+ 
+# LWZ (dictionary based)
+# Function to perform Dictionary-based Encoding (LZW)
+def lzw_encode(message):
+    dictionary = {chr(i): i for i in range(256)}
+    current_string = ""
+    encoded_output = []
+    for char in message:
+        combined_string = current_string + char
+        if combined_string in dictionary:
+            current_string = combined_string
+        else:
+            encoded_output.append(dictionary[current_string])
+            dictionary[combined_string] = len(dictionary)
+            current_string = char  
+    if current_string:
+        encoded_output.append(dictionary[current_string])  
+    return encoded_output
+
+def lzw_decode(encoded_output):
+    dictionary = {i: chr(i) for i in range(256)}
+    current_code = encoded_output[0]
+    current_string = dictionary[current_code]
+    decoded_output = [current_string]
+    for code in encoded_output[1:]:
+        if code in dictionary:
+            entry = dictionary[code]
+        else:
+            entry = current_string + current_string[0] 
+        decoded_output.append(entry)
+        dictionary[len(dictionary)] = current_string + entry[0]
+        current_string = entry
+    return ''.join(decoded_output)
+
+def main():
+    input_file = input("Enter the text file name: ")
+    with open(input_file, 'r') as file:
+        message = file.read().strip()
+    print("Original message: ", message)
+    encoded_output = lzw_encode(message)
+    print(f"Encoded: {encoded_output}")
+    encoded_file = 'encoded_message.lzw'
+    with open(encoded_file, 'w') as file:
+        file.write(','.join(map(str, encoded_output)))
+    print(f"Encoded message saved to {encoded_file}")
+    with open(encoded_file, 'r') as file:
+        encoded_output = list(map(int, file.read().split(',')))
+    decoded_message = lzw_decode(encoded_output)
+    print(f"Decoded: {decoded_message}")
+    decoded_file = 'decoded_message.txt'
+    with open(decoded_file, 'w') as file:
+        file.write(decoded_message)
+    print(f"Decoded message saved to {decoded_file}")
+    if message == decoded_message:
+        print("Success! The decoded message matches the original.")
+    else:
+        print("Error! The decoded message does not match the original.")
+
+if __name__ == "__main__":
+    main()
+
